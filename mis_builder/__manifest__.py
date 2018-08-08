@@ -14,6 +14,7 @@
     'website': 'https://github.com/OCA/mis-builder/',
     'depends': [
         'account',
+        'analytic',
         'board',
         'report_xlsx',  # OCA/reporting-engine
         'date_range',  # OCA/server-tools

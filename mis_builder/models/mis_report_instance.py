@@ -368,6 +368,15 @@ class MisReportInstance(models.Model):
             _company_default_get('mis.report.instance')
         return default_company_id
 
+    @api.depends('analytic_account_ids')
+    def _compute_domain_filter(self):
+        domain = []
+        if self.analytic_account_ids:
+            account_ids = [acc.id for acc in self.analytic_account_ids]
+            domain = [('analytic_account_id', 'in', account_ids)]
+        self.filter_domain = str(domain)
+
+
     _name = 'mis.report.instance'
 
     name = fields.Char(required=True,
@@ -434,6 +443,15 @@ class MisReportInstance(models.Model):
     date_from = fields.Date(string="From")
     date_to = fields.Date(string="To")
     temporary = fields.Boolean(default=False)
+    filter_domain = fields.Char(
+        string='Filter Domain',
+        compute='_compute_domain_filter',
+        default='[]'
+    )
+    analytic_account_ids = fields.Many2many(
+        comodel_name='account.analytic.account',
+        string='Analytic filter'
+    )
 
     @api.onchange('company_id', 'multi_company')
     def _onchange_company(self):
@@ -602,6 +620,7 @@ class MisReportInstance(models.Model):
             period.subkpi_ids,
             period._get_additional_move_line_filter,
             period._get_additional_query_filter,
+            domain=period.report_instance_id.filter_domain,
             no_auto_expand_accounts=self.no_auto_expand_accounts,
         )
 

@@ -77,6 +77,15 @@
                             </group>
                         </group>
                     </group>
+                <group>
+                    <group>
+                        <field name="filter_domain"/>
+                        <!--  widget="char_domain"
+                               placeholder="Select recipients"
+                               options="{'model': 'account.move.line'}"
+                        -->
+                    </group>
+                </group>
                     <notebook>
                         <page string="Columns" attrs="{'invisible': [('comparison_mode', '=', False)]}">
                             <group>
@@ -105,6 +114,13 @@
                                 <field name="company_ids" groups="base.group_multi_company" widget="many2many_tags"
                                         domain="[('id', 'child_of', company_id)]"
                                         attrs="{'invisible': [('multi_company', '=', False)]}"/>
+                            </group>
+                            <group>
+                                <notebook>
+                                    <page string="Analytic accounts">
+                                        <field name="analytic_account_ids"/>
+                                    </page>
+                                </notebook>
                             </group>
                         </page>
                         <page string="Layout">

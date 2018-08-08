@@ -222,7 +222,8 @@ class AccountingExpressionProcessor(object):
     def get_aml_domain_for_expr(self, expr,
                                 date_from, date_to,
                                 target_move,
-                                account_id=None):
+                                account_id=None,
+                                domain=[]):
         """ Get a domain on account.move.line for an expression.
 
         Prerequisite: done_parsing() must have been invoked.
@@ -252,7 +253,8 @@ class AccountingExpressionProcessor(object):
             if mode not in date_domain_by_mode:
                 date_domain_by_mode[mode] = \
                     self.get_aml_domain_for_dates(date_from, date_to,
-                                                  mode, target_move)
+                                                  mode, target_move,
+                                                  domain)
         assert aml_domains
         # TODO we could do this for more precision:
         #      AND(OR(aml_domains[mode]), date_domain[mode]) for each mode
@@ -260,10 +262,12 @@ class AccountingExpressionProcessor(object):
             expression.OR(date_domain_by_mode.values())
 
     def get_aml_domain_for_dates(self, date_from, date_to,
-                                 mode,
-                                 target_move):
+                                 mode, target_move,
+                                 domain="[]"):
+
+        domain = safe_eval(domain)
         if mode == self.MODE_VARIATION:
-            domain = [('date', '>=', date_from), ('date', '<=', date_to)]
+            domain.extend([('date', '>=', date_from), ('date', '<=', date_to)])
         elif mode in (self.MODE_INITIAL, self.MODE_END):
             # for income and expense account, sum from the beginning
             # of the current fiscal year only, for balance sheet accounts
@@ -272,26 +276,26 @@ class AccountingExpressionProcessor(object):
             # TODO this takes the fy from the first company
             # make that user controllable (nice to have)?
             fy_date_from = \
-                self.companies.\
-                compute_fiscalyear_dates(date_from_date)['date_from']
-            domain = ['|',
-                      ('date', '>=', fields.Date.to_string(fy_date_from)),
-                      ('user_type_id.include_initial_balance', '=', True)]
+                self.companies. \
+                    compute_fiscalyear_dates(date_from_date)['date_from']
+            domain.extend([('|',
+                            ('date', '>=', fields.Date.to_string(fy_date_from)),
+                            ('user_type_id.include_initial_balance', '=', True))])
             if mode == self.MODE_INITIAL:
-                domain.append(('date', '<', date_from))
+                domain.extend([('date', '<', date_from)])
             elif mode == self.MODE_END:
-                domain.append(('date', '<=', date_to))
+                domain.extend([('date', '<=', date_to)])
         elif mode == self.MODE_UNALLOCATED:
             date_from_date = fields.Date.from_string(date_from)
             # TODO this takes the fy from the first company
             # make that user controllable (nice to have)?
             fy_date_from = \
-                self.companies.\
-                compute_fiscalyear_dates(date_from_date)['date_from']
-            domain = [('date', '<', fields.Date.to_string(fy_date_from)),
-                      ('user_type_id.include_initial_balance', '=', False)]
+                self.companies. \
+                    compute_fiscalyear_dates(date_from_date)['date_from']
+            domain.extend([('date', '<', fields.Date.to_string(fy_date_from)),
+                           ('user_type_id.include_initial_balance', '=', False)])
         if target_move == 'posted':
-            domain.append(('move_id.state', '=', 'posted'))
+            domain.extend([('move_id.state', '=', 'posted')])
         return expression.normalize_domain(domain)
 
     def _get_company_rates(self, date):
@@ -310,7 +314,7 @@ class AccountingExpressionProcessor(object):
 
     def do_queries(self, date_from, date_to,
                    target_move='posted', additional_move_line_filter=None,
-                   aml_model=None):
+                   aml_model=None, domain_filter=[]):
         """Query sums of debit and credit for all accounts and domains
         used in expressions.
 
@@ -334,7 +338,8 @@ class AccountingExpressionProcessor(object):
             if mode not in domain_by_mode:
                 domain_by_mode[mode] = \
                     self.get_aml_domain_for_dates(date_from, date_to,
-                                                  mode, target_move)
+                                                  mode, target_move,
+                                                  domain=domain_filter)
             domain = list(domain) + domain_by_mode[mode]
             domain.append(('account_id', 'in', self._map_account_ids[key]))
             if additional_move_line_filter:
